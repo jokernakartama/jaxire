@@ -1,0 +1,30 @@
+{
+  "name": "jaxire",
+  "version": "0.1.0",
+  "description": "An ajax wrapper for declarative api requests",
+  "author": "Sergey Kobzev",
+  "license": "MIT",
+  "main": "index.js",
+  "scripts": {
+    "test": "tape test/*.js | tap-spec"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jokernakartama/jaxire.git"
+  },
+  "keywords": [
+    "xhr",
+    "rest"
+  ],
+  "bugs": {
+    "url": "https://github.com/jokernakartama/jaxire/issues"
+  },
+  "homepage": "https://github.com/jokernakartama/jaxire#README",
+  "dependencies": {
+    "xhr": "^2.5.0"
+  },
+  "devDependencies": {
+    "tap-spec": "^5.0.0",
+    "tape": "^4.9.2"
+  }
+}
