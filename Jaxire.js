@@ -11,7 +11,7 @@ var Jaxire = factory()
 function urlStr (data) {
   var str = ''
   for (var key in data) {
-    const value = data[key]
+    var value = data[key]
     if (value !== undefined && value !== null) str = str + '&' + key + '=' + encodeURIComponent(data[key].toString())
   }
   return str.slice(1)
@@ -22,7 +22,7 @@ function urlStr (data) {
  * @param {Jaxire} instance - Jaxire instance
  */
 function callback (instance) {
-  return (Error, resp, body) => {
+  return function (Error, resp, body) {
     for (var statusEvent in instance._callbacksMap) {
       var rule = false
       if (statusEvent in instance._statusesMap) {
@@ -92,7 +92,7 @@ function callback (instance) {
     instance = construct(instance)
     if (!instance.url) throw Error('Specify the url before sending')
     var headers = {}
-    for (let header in instance._headersMap) {
+    for (var header in instance._headersMap) {
       if (typeof instance._headersMap[header] === 'function') {
         headers[header] = instance._headersMap[header]()
       } else {
@@ -104,7 +104,7 @@ function callback (instance) {
       {
         method: instance.method,
         body: data,
-        headers
+        headers: headers
       },
       callback(instance)
     )
@@ -146,9 +146,10 @@ function setSendMethod (construct, prototype) {
     get: function () {
       var ctx = this
       ctx.format = null
-      var method = function send (data, contentType = 'application/x-www-form-urlencoded') {
+      var method = function send (data, contentType) {
+        contentType = contentType || 'application/x-www-form-urlencoded'
         return new Promise (ctx._prepareFunc)
-          .then(() => {
+          .then(function () {
             if (typeof contentType === 'string' && !ctx._headersMap['Content-Type']) {
               ctx._headersMap['Content-Type'] = contentType
             }
@@ -176,7 +177,8 @@ function setSendMethod (construct, prototype) {
   })
 }
 
-function factory (preset = {}) {
+function factory (preset) {
+  preset = preset || {}
   var F = function Jaxire () {
     this.url = ''
     this.method = ''
@@ -216,19 +218,24 @@ function factory (preset = {}) {
    * @param {string} url - Url without any parameters
    * @param {object} params - Serializable object of url parameters, e. g. /api turns to /api?key=value
    */
-  F.get = function (url, params = null) {
+  F.get = function (url, params) {
+    params = params || null
     return setUrlAndMethod(create, this, url, 'get', params)
   }
-  F.post = function (url, params = null) {
+  F.post = function (url, params) {
+    params = params || null
     return setUrlAndMethod(create, this, url, 'post', params)
   }
-  F.put = function (url, params = null) {
+  F.put = function (url, params) {
+    params = params || null
     return setUrlAndMethod(create, this, url, 'put', params)
   }
-  F.patch = function (url, params = null) {
+  F.patch = function (url, params) {
+    params = params || null
     return setUrlAndMethod(create, this, url, 'patch', params)
   }
-  F.delete = function (url, params = null) {
+  F.delete = function (url, params) {
+    params = params || null
     return setUrlAndMethod(create, this, url, 'delete', params)
   }
   // callbacks
