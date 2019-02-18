@@ -41,3 +41,29 @@ test('Provides the "send" method that also provides different formats to send da
   t.end()
 })
 
+test('Sets "Content-Type" header according send method', (t) => {
+  var methods = {}
+  var base = Jaxire.preset({
+    send: function (val) {      
+      if (this.format === null) {
+        methods.default = this._headersMap['Content-Type']
+      } else {
+        methods[this.format] = this._headersMap['Content-Type']
+      }
+      return val
+    }
+  })
+  var send = base.get('/')
+  var sendText = base.post('/')
+  var sendJson = base.post('/')
+  var sendForm = base.post('/')
+  send.send()
+  sendText.send.text({ text: 'sample' })
+  sendJson.send.json({ data: 'sample' })
+  sendForm.send.form()
+  t.equal(methods.default, undefined, 'should not set content type when there is no data to send')
+  t.equal(methods.text, 'application/x-www-form-urlencoded', 'should set header for .text()')
+  t.equal(methods.json, 'application/json', 'should set header for .json()')
+  t.equal(methods.form, undefined, 'should not set header for .form()')
+  t.end()
+})
