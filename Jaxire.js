@@ -22,7 +22,7 @@ function urlStr (data) {
  * @param {Jaxire} instance - Jaxire instance
  */
 function callback (instance) {
-  return function (Error, resp, body) {
+  return function (E, resp, body) {
     for (var statusEvent in instance._callbacksMap) {
       var rule = false
       if (statusEvent in instance._statusesMap) {
@@ -146,24 +146,26 @@ function setSendMethod (construct, prototype) {
     get: function () {
       var ctx = this
       ctx.format = null
-      var method = function send (data, contentType) {
-        contentType = contentType || 'application/x-www-form-urlencoded'
+      var method = function send (data) {
         return new Promise (ctx._prepareFunc)
           .then(function () {
-            if (typeof contentType === 'string' && !ctx._headersMap['Content-Type']) {
-              ctx._headersMap['Content-Type'] = contentType
-            }
             request(construct, ctx, data)
           })
       }
       method.text = function sendText (data) {
         ctx.format = 'text'
-        method(urlStr(ctx._sendFunc(data)), 'application/x-www-form-urlencoded')
+        if (ctx._headersMap['Content-Type'] === undefined) {
+          ctx._headersMap['Content-Type'] = 'application/x-www-form-urlencoded'
+        }
+        method(urlStr(ctx._sendFunc(data)))
       }
       method.json = function sendJSON (data) {
         ctx.format = 'json'
+        if (ctx._headersMap['Content-Type'] === undefined) {
+          ctx._headersMap['Content-Type'] = 'application/json'
+        }
         data = JSON.stringify(ctx._sendFunc(data))
-        method(data, 'application/json')
+        method(data)
       }
       method.form = function sendFormData (data) {
         ctx.format = 'form'
