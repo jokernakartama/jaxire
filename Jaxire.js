@@ -146,10 +146,11 @@ function setSendMethod (construct, prototype) {
     get: function () {
       var ctx = this
       ctx.format = null
-      var method = function send (data) {
-        return new Promise (ctx._prepareFunc)
+      var method = function send (data, formatted) {
+        var value = formatted ? value : ctx._sendFunc(data)
+        return new Promise(ctx._prepareFunc)
           .then(function () {
-            request(construct, ctx, data)
+            request(construct, ctx, value)
           })
       }
       method.text = function sendText (data) {
@@ -157,7 +158,7 @@ function setSendMethod (construct, prototype) {
         if (ctx._headersMap['Content-Type'] === undefined) {
           ctx._headersMap['Content-Type'] = 'application/x-www-form-urlencoded'
         }
-        method(urlStr(ctx._sendFunc(data)))
+        method(urlStr(ctx._sendFunc(data)), true)
       }
       method.json = function sendJSON (data) {
         ctx.format = 'json'
@@ -165,11 +166,11 @@ function setSendMethod (construct, prototype) {
           ctx._headersMap['Content-Type'] = 'application/json'
         }
         data = JSON.stringify(ctx._sendFunc(data))
-        method(data)
+        method(data, true)
       }
       method.form = function sendFormData (data) {
         ctx.format = 'form'
-        method(ctx._sendFunc(data), null)
+        method(ctx._sendFunc(data), true)
       }
       return method
     },

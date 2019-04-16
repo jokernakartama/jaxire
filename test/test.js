@@ -1,4 +1,5 @@
 var test = require('tape')
+var sinon = require('sinon')
 var Jaxire = require('../Jaxire')
 
 test('Any static method creates an instance', (t) => {
@@ -65,5 +66,21 @@ test('Sets "Content-Type" header according send method', (t) => {
   t.equal(methods.text, 'application/x-www-form-urlencoded', 'should set header for .text()')
   t.equal(methods.json, 'application/json', 'should set header for .json()')
   t.equal(methods.form, undefined, 'should not set header for .form()')
+  t.end()
+})
+
+test('Calls preset data modifier on each send method', (t) => {
+  var spy = sinon.spy()
+  var preset = Jaxire.preset({
+    send: spy
+  })
+  preset.get('/').send(0)
+  preset.get('/').send.text({ step: 1 })
+  preset.get('/').send.json({ step: 2 })
+  preset.get('/').send.form({ step: 3 })
+  t.equal(spy.getCall(0).args[0], 0, 'should be called with argument 0')
+  t.equal(spy.getCall(1).args[0].step, 1, 'should be called with argument { step: 1 }')
+  t.equal(spy.getCall(2).args[0].step, 2, 'should be called with argument { step: 2 }')
+  t.equal(spy.getCall(3).args[0].step, 3, 'should be called with argument { step: 3 }')
   t.end()
 })
