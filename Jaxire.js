@@ -147,7 +147,7 @@ function setSendMethod (construct, prototype) {
       var ctx = this
       ctx.format = null
       var method = function send (data, formatted) {
-        var value = formatted ? value : ctx._sendFunc(data)
+        var value = formatted ? data : ctx._sendFunc(data)
         return new Promise(ctx._prepareFunc)
           .then(function () {
             request(construct, ctx, value)
