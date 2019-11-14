@@ -146,6 +146,7 @@ function setSendMethod (construct, prototype) {
     get: function () {
       var ctx = this
       ctx.format = null
+
       var method = function send (data, formatted) {
         var value = formatted ? data : ctx._sendFunc(data)
         return new Promise(ctx._prepareFunc)
@@ -153,6 +154,7 @@ function setSendMethod (construct, prototype) {
             request(construct, ctx, value)
           })
       }
+
       method.text = function sendText (data) {
         ctx.format = 'text'
         if (ctx._headersMap['Content-Type'] === undefined) {
@@ -160,6 +162,7 @@ function setSendMethod (construct, prototype) {
         }
         method(urlStr(ctx._sendFunc(data)), true)
       }
+
       method.json = function sendJSON (data) {
         ctx.format = 'json'
         if (ctx._headersMap['Content-Type'] === undefined) {
@@ -168,20 +171,80 @@ function setSendMethod (construct, prototype) {
         data = JSON.stringify(ctx._sendFunc(data))
         method(data, true)
       }
+
       method.form = function sendFormData (data) {
         ctx.format = 'form'
         method(ctx._sendFunc(data), true)
       }
+
       return method
     },
+
     set: function (val) {
       return val
     }
   })
 }
 
-function factory (preset) {
+function mergePresets (func, preset) {
   preset = preset || {}
+
+  var sendMergeStrategy = preset.sendMergeStrategy || 'post'
+  var prepareMergeStrategy = preset.prepareMergeStrategy || 'post'
+  var sendFunc = preset.send || function (val) { return val }
+  var prepareFunc = preset.prepare || function (done) { done() }
+  var sendMethod = preset.send || function (val) { return val }
+  var prepareMethod = preset.prepare || function (done) { done() }
+
+  func._headers = Object.assign({}, (this ? this._headers : {}), (preset.headers || {}))
+  func._status = Object.assign({}, (this ? this._status : {}), (preset.status || {}))
+  func._on = Object.assign({}, (this ? this._on : {}), (preset.on || {}))
+
+  if (this) {
+    var parentSendFunc = this._send
+    var parentPrepareFunc = this._prepare
+
+    if (sendMergeStrategy === 'post') {
+      sendMethod = function (value) {
+        return sendFunc.call(this, parentSendFunc.call(this, value))
+      }
+    } else if (sendMergeStrategy === 'pre') {
+      sendMethod = function (value) {
+        return parentSendFunc.call(this, sendFunc.call(this, value))
+      }
+    }
+
+    if (prepareMergeStrategy === 'post') {
+      prepareMethod = function (done) {
+        var ctx = this
+
+        new Promise(parentPrepareFunc.bind(ctx))
+          .then(function () {
+            return new Promise(prepareFunc.bind(ctx))
+          })
+          .then(done)
+        
+      }
+    } else if (prepareMergeStrategy === 'pre') {
+      prepareMethod = function (done) {
+        var ctx = this
+
+        new Promise(prepareFunc.bind(ctx))
+          .then(function () {
+            return new Promise(this._prepare.bind(ctx))
+          })
+          .then(done)
+      }
+    }
+  }
+
+  func._send = sendMethod
+  func._prepare = prepareMethod
+
+  return func
+}
+
+function factory (preset) {
   var F = function Jaxire () {
     this.url = ''
     this.method = ''
@@ -192,11 +255,8 @@ function factory (preset) {
     this._sendFunc = this.constructor._send.bind(this)
     this._prepareFunc = this.constructor._prepare.bind(this)
   }
-  F._headers = preset.headers || {}
-  F._status = preset.status || {}
-  F._on = preset.on || {}
-  F._send = preset.send || function (val) { return val }
-  F._prepare = preset.prepare || function (done) { done() }
+
+  mergePresets.bind(this)(F, preset)
 
   var create = function (o) {
     if (!(o instanceof F)) {
@@ -211,7 +271,11 @@ function factory (preset) {
    */
   F.headers = function (headers) {
     var instance = create(this)
-    if (headers) instance._headersMap = Object.assign({}, instance._headersMap, headers)
+
+    if (headers) {
+      instance._headersMap = Object.assign({}, instance._headersMap, headers)
+    }
+
     return instance
   }
 
@@ -225,22 +289,27 @@ function factory (preset) {
     params = params || null
     return setUrlAndMethod(create, this, url, 'get', params)
   }
+
   F.post = function (url, params) {
     params = params || null
     return setUrlAndMethod(create, this, url, 'post', params)
   }
+
   F.put = function (url, params) {
     params = params || null
     return setUrlAndMethod(create, this, url, 'put', params)
   }
+
   F.patch = function (url, params) {
     params = params || null
     return setUrlAndMethod(create, this, url, 'patch', params)
   }
+
   F.delete = function (url, params) {
     params = params || null
     return setUrlAndMethod(create, this, url, 'delete', params)
   }
+
   // callbacks
   /**
    * Sets response statuses which initiate callback
@@ -274,6 +343,7 @@ function factory (preset) {
   }
 
   setSendMethod(create, F.prototype)
+  F.preset = factory
   F.prototype.headers = F.headers
   F.prototype.get = F.get
   F.prototype.post = F.post
@@ -291,6 +361,7 @@ Jaxire.preset = factory
 
 Jaxire.prototype.preset = function () {
   var instance = this
+
   return Jaxire.preset({
     headers: instance._headersMap,
     status: instance._statusesMap,
@@ -301,3 +372,4 @@ Jaxire.prototype.preset = function () {
 
 module.exports = Jaxire
 module.exports.default = Jaxire
+
