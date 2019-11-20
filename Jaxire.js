@@ -175,10 +175,10 @@ function setSendMethod (construct, prototype) {
       var ctx = this
       ctx.format = null
 
-      var method = function send (data, clean = false) {
+      var method = function send (data) {
         return new Promise(ctx._prepareFunc)
-          .then(function (param) {
-            var value = clean ? data : ctx._sendFunc(data, param)
+          .then(function () {
+            var value = ctx._sendFunc(data)
             request(construct, ctx, value)
           })
           .catch(function (error) {
@@ -194,11 +194,18 @@ function setSendMethod (construct, prototype) {
        * @param {object} data - Map of params
        */
       method.text = function sendText (data) {
+        var sendFunc = ctx._sendFunc
         ctx.format = 'text'
+
         if (ctx._headersMap['Content-Type'] === undefined) {
           ctx._headersMap['Content-Type'] = 'application/x-www-form-urlencoded'
         }
-        method(urlStr(ctx._sendFunc(data)), true)
+
+        ctx._sendFunc = function (data) {
+          return urlStr(sendFunc(data))
+        }
+
+        return method(data)
       }
 
       /**
@@ -208,12 +215,18 @@ function setSendMethod (construct, prototype) {
        * @param {object} data - JSON-serializable data
        */
       method.json = function sendJSON (data) {
+        var sendFunc = ctx._sendFunc
         ctx.format = 'json'
+
         if (ctx._headersMap['Content-Type'] === undefined) {
           ctx._headersMap['Content-Type'] = 'application/json'
         }
-        data = JSON.stringify(ctx._sendFunc(data))
-        method(data, true)
+
+        ctx._sendFunc = function (data) {
+          return JSON.stringify(sendFunc(data))
+        }
+
+        return method(data)
       }
 
       /**
@@ -223,7 +236,8 @@ function setSendMethod (construct, prototype) {
        */
       method.form = function sendFormData (data) {
         ctx.format = 'form'
-        method(ctx._sendFunc(data), true)
+
+        return method(data)
       }
 
       return method
