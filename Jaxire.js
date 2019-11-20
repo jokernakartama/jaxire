@@ -176,10 +176,13 @@ function setSendMethod (construct, prototype) {
       ctx.format = null
 
       var method = function send (data, clean = false) {
-        var value = clean ? data : ctx._sendFunc(data)
         return new Promise(ctx._prepareFunc)
-          .then(function () {
+          .then(function (param) {
+            var value = clean ? data : ctx._sendFunc(data, param)
             request(construct, ctx, value)
+          })
+          .catch(function (error) {
+            throw Error(error)
           })
       }
       
@@ -280,6 +283,9 @@ function mergePresets (func, preset) {
             return new Promise(prepareFunc.bind(ctx))
           })
           .then(done)
+          .catch(function (error) {
+            throw Error(error)
+          })
         
       }
     } else if (prepareMergeStrategy === 'pre') {
@@ -288,9 +294,12 @@ function mergePresets (func, preset) {
 
         new Promise(prepareFunc.bind(ctx))
           .then(function () {
-            return new Promise(this._prepare.bind(ctx))
+            return new Promise(parentPrepareFunc.bind(ctx))
           })
           .then(done)
+          .catch(function (error) {
+            throw Error(error)
+          })
       }
     }
   }
