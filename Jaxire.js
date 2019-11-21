@@ -263,8 +263,8 @@ function mergePresets (func, preset) {
    */
   preset = preset || {}
 
-  var sendMergeStrategy = preset.sendMergeStrategy || 'post'
-  var prepareMergeStrategy = preset.prepareMergeStrategy || 'post'
+  var sendMergeStrategy = preset.sendMergeStrategy
+  var prepareMergeStrategy = preset.prepareMergeStrategy
   var sendFunc = preset.send || function (val) { return val }
   var prepareFunc = preset.prepare || function (done) { done() }
   var sendMethod = preset.send || function (val) { return val }
