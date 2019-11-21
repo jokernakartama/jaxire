@@ -1,6 +1,6 @@
 {
   "name": "jaxire",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "An ajax wrapper for declarative api requests",
   "author": "Sergey Kobzev",
   "license": "MIT",
