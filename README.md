@@ -109,9 +109,9 @@ JX
 
 ```
 
-#### .descr(str)
+#### .descr(any)
 
-Just sets a description for the request, that can be used in callbacks and (what is more useful) in presets. A short message helps you describe what is happening there better than the request url and method, especially when the url contains dynamic parameters.
+Just sets a description for the request, that can be used in callbacks and (what is more useful) in presets. A short message helps you describe what is happening there, better than the request url and method, especially when the url contains dynamic parameters. The passed parameter is available as *this.message* in callbacks and preset functions.
 
 ```js
 var id = getUserId() // dynamic parameter
@@ -134,7 +134,7 @@ JX.descr('get_user')
 
 #### .send(data)
 
-Sends the data. Also provides to set content type by calling it's own methods: `.send.json()`, `.send.text()`, `.send.form()`. You do not need to set Content-Type manually if you use one of them!
+Sends the data. Also provides to set content type and format data by calling it's own methods: `.send.json()`, `.send.text()`, `.send.form()`. You do not need to set `Content-Type` header manually if you use one of them!
 
 ```js
 
@@ -145,10 +145,14 @@ JX
   .send()
   // Serializable data can be sent as JSON
   // .send.json({ key: 'value', list: [1, 2, 3]})
+
   // URIEncoded string, uses .toString() to serialize values!
   // sends name=John&lastname=Doe&visible=false
   // .send.text({ name: 'John', lastname: 'Doe', visible: false })
-  // FormData object
+
+  // FormData object (this is the same method as .send unlike two others
+  // before, but can be helpful to explicitly declare that the request
+  // is used to send forms)
   // .send.form(new FormData())
 
 ```
@@ -164,8 +168,12 @@ Sometimes you need to permanently set some parameters for all requests. Jaxire p
 * **headers** - an object of headers that be preset in each instance of the constructor
 * **status** - an object of statuses
 * **on** - an object of callbacks (unlike an instance method)
-* **prepare** - a function that be called before sending request. Passes one argumnent: a function that should be called if you need to continue and send request. Should be useful to *make asynchronuos actions* before sending or to stop the request conditionally.
-* **send** - a function that can modify sent data before it will be sent.
+* **prepare - fn(done)** - a function that be called before sending request. Passes one argumnent: a function that should be called if you need to continue and send request. Should be useful to *make asynchronuos actions* before sending or to stop the request conditionally.
+* **send - fn(value, params)** - a function that can modify sent data before it will be sent. The second argument is any data that you pass to the *prepare*'s "done".
+* **sendMergeStrategy** - `'post'` or `'pre'`: is how to call parent preset send functions. If you want to replace one, just ommit this parameter.
+* **prepareMergeStrategy** -`'post'` or `'pre'`: is how to wait parent preset prepare functions. If you want to replace one, just ommit this parameter.
+
+Both **prepare** and **send** functions use the instance's context.
 
 
 ```js
@@ -209,7 +217,7 @@ var MyAPI = Jaxire.preset({
       return {
         data: passedValue,
         href: window.location.href
-      }
+      }  prepareMergeStrategy: 'pre',
     } else {
       return passedValue
     }
@@ -218,3 +226,53 @@ var MyAPI = Jaxire.preset({
 
 ```
 
+#### Creating preset from Jaxire instance
+
+Sometimes your request is so useful, so you want to use it's callbacks in other requests. A Jaxire instance also provides `.preset()` method but without any arguments: just to copy callbacks, preparer and sender.
+
+```js
+
+// JXwithPreset has own preset options that we set before
+const CoolRequest = JXwithPreset.post('/')
+  .status(/* status object here */)
+  .on(/* callback options here */)
+
+
+CoolRequest.send(/* some data */)
+
+// Wait! There are more requests with similar callbacks!
+
+const CoolRequestsLike = CoolRequest.preset()
+
+// Has the same callbacks as CoolRequest!
+CoolRequestLike.get('/')
+
+// Well this one with the same data is a tween of CoolRequest
+CoolRequestLike.post('/')
+// Seems useless, but who knows?
+
+```
+
+#### Inheritance during creating preset Jaxire constructors
+
+Sometimes you need to use base requests, the more custom ones and much more custom ones. You can extend the preset constructors as much as you want:
+
+```js
+
+// Well in the base api we set some base callback to handle common errors
+const BaseAPI = JX.preset(/*opts*/)
+
+// In the user api we add some OAuth2 headers and token expiration check
+// before sending. And a bit modify sending data to collect additional info
+// about users.
+const UserAPI = BaseAPI.preset(/* opts */)
+
+// In the admin api we need all of this user things, but also some
+// additional checks before sending and some data changes, and some callbacks...
+// But now we can write our requests now much shorted and without duplication
+// general code!
+const AdminAPI = UserAPI.preset(/* opts */)
+
+```
+
+In this case `AdminAPI` gets all of previous ones' callbacks, statuses and preparations. To set order of how `prepare` and `send` functions should be called use **sendMergeStrategy** and **prepareMergeStrategy** options.
