@@ -43,7 +43,6 @@ test('Provides the "send" method that also provides different formats to send da
 })
 
 test('Sets "Content-Type" header according send method', function (t) {
-  var methods = {}
   var base = Jaxire.preset({
     send: function (val) {      
       return val
@@ -253,7 +252,7 @@ test('Uses the same context in "send" and "prepare" preset functions', function 
     send: function (value) {
       contextSpy(this)
       if (contextSpy.alwaysCalledWithExactly(this)) {
-        t.pass('contexts are equal')
+        t.pass('Contexts are equal')
       } else {
         t.fail('Contexts are not equal')
       }
@@ -269,4 +268,3 @@ test('Uses the same context in "send" and "prepare" preset functions', function 
 
   ChildInstance.send()
 })
-
