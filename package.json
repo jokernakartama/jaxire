@@ -1,6 +1,6 @@
 {
   "name": "jaxire",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "An ajax wrapper to make requests easy to read",
   "author": "Sergey Kobzev",
   "license": "MIT",
