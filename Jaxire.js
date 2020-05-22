@@ -1,6 +1,9 @@
 "use strict"
 
 var xhr = require('xhr')
+var urlToStr = require('./helpers/urlToStr')
+var compareStatus = require('./helpers/compareStatus')
+var setUrlAndMethod = require('./helpers/setUrlAndMethod')
 
 /**
  * @namespace Jaxire(2)
@@ -17,64 +20,29 @@ var xhr = require('xhr')
 var Jaxire = factory()
 
 /**
- * Serializes objects to urlencoded query string
- * @param {object} data - Object of key-value pairs
- * @returns {string}
- */
-function urlStr (data) {
-  var str = ''
-
-  for (var key in data) {
-    var value = data[key]
-    if (value !== undefined && value !== null) {
-      str = str + '&' + key + '=' + encodeURIComponent(data[key].toString())
-    }
-  }
-
-  return str.slice(1)
-}
-
-/**
- * Calls function according on response status
+ * Creates a callback that calls functions according the response status code
  * @param {Jaxire} instance - Jaxire instance
+ * @param {Function} resolve - Promise resolve function
+ * @param {Function} reject - Promise reject function
  * @returns {Function} - xhr callback
  */
-function callback (instance) {
+function createCallback (instance, resolve, reject) {
   return function (E, resp, body) {
     for (var statusEvent in instance._callbacksMap) {
-      var rule = false
+      var isStatusSuitable = false
+
       if (statusEvent in instance._statusesMap) {
         if (instance._statusesMap[statusEvent] instanceof Array) {
-          // status arrays
-          var excludes = []
-          var includes = []
-          for (var n = 0; n < instance._statusesMap[statusEvent].length; n++) {
-            if (typeof instance._statusesMap[statusEvent][n] === 'number') {
-              includes.push(instance._statusesMap[statusEvent][n])
-            } else if (typeof instance._statusesMap[statusEvent][n] === 'string' && /^!\d{3}/.test(instance._statusesMap[statusEvent][n])) {
-              excludes.push(Number(instance._statusesMap[statusEvent][n].slice(1)))
-            }
-          }
-          if (
-            (includes.length > 0 && includes.indexOf(resp.statusCode) > -1) ||
-            (includes.length === 0 && excludes.length > 0 && excludes.indexOf(resp.statusCode) === -1)
-          ) {
-            rule = true
-          }
-        } else if (typeof instance._statusesMap[statusEvent] === 'number' && instance._statusesMap[statusEvent] === resp.statusCode) {
-          // status number
-          rule = true
-        } else if (typeof instance._statusesMap[statusEvent] === 'string') {
-          // status string
-          if (instance._statusesMap[statusEvent].toLowerCase() === 'all') {
-            // for all statuses
-            rule = true
-          } else if (instance._statusesMap[statusEvent].slice(0, 1) === '!' && +instance._statusesMap[statusEvent].slice(1) !== resp.statusCode) {
-            rule = true
-          }
+          isStatusSuitable = instance._statusesMap[statusEvent].some(function (status) {
+            return compareStatus(status, resp.statusCode)
+          })
+        } else {
+          isStatusSuitable = compareStatus(instance._statusesMap[statusEvent], resp.statusCode)
         }
-        if (rule) {
-          if (resp.headers['content-type'] && resp.headers['content-type'].indexOf('application/json') > -1) {
+
+        if (isStatusSuitable) {
+          // xhr turns headers to lowercase
+          if (resp.headers['content-type'] && resp.headers['content-type'] === 'application/json') {
             try {
               body = JSON.parse(body)
               resp.body = body
@@ -82,73 +50,51 @@ function callback (instance) {
               if (e); // pass
             }
           }
+
           instance._callbacksMap[statusEvent].bind(instance)(body, resp)
         }
       }
     }
-    // clear object after request
-    instance.url = ''
-    instance.method = ''
-    instance.message = ''
-    instance._headersMap = Object.assign({}, instance.constructor._headers)
-    instance._statusesMap = Object.assign({}, instance.constructor._status)
-    instance._callbacksMap = Object.assign({}, instance.constructor._on)
-    instance._sendFunc = instance.constructor._send.bind(instance)
-    instance._prepareFunc = instance.constructor._prepare.bind(instance)
+
+    if (!E) {
+      resolve(resp)
+    } else {
+      reject(E)
+    }
   }
 }
 
 /**
  * Sends request with params
+ * @param {Function} construct - The instance constructor
  * @param {Jaxire} instance - Jaxire instance
  * @param {(string|FormData)} data
+ * @param {Function} resolve
+ * @param {Function} reject
  */
-function request (construct, instance, data) {
+function makeXHRequest (construct, instance, data, resolve, reject) {
   var headers = {}
 
   instance = construct(instance)
   if (!instance.url) throw Error('Specify the url before sending')
 
-
-  for (var header in instance._headersMap) {
-    if (typeof instance._headersMap[header] === 'function') {
-      headers[header] = instance._headersMap[header]()
-    } else {
-      headers[header] = instance._headersMap[header]
+    for (var header in instance._headersMap) {
+      if (typeof instance._headersMap[header] === 'function') {
+        headers[header] = instance._headersMap[header].call(instance, data)
+      } else {
+        headers[header] = instance._headersMap[header]
+      }
     }
-  }
 
-  xhr(
-    instance.url,
-    {
-      method: instance.method,
-      body: data,
-      headers: headers
-    },
-    callback(instance)
-  )
-}
-
-/**
- * Sets instance query parameters
- * @param {Jaxire} instance - Jaxire instance
- * @param {string} url - URL without any query parameters
- * @param {string} method
- * @param {string} params - Query parameters
- */
-function setUrlAndMethod (construct, instance, url, method, params) {
-  var query
-
-  instance = construct(instance)
-  instance.method = method
-  instance.url = url
-
-  if (params && typeof params === 'object') {
-    query = urlStr(params)
-    if (query !== '') instance.url = instance.url + '?' + query
-  }
-
-  return instance
+    xhr(
+      instance.url,
+      {
+        method: instance.method,
+        body: data,
+        headers: headers
+      },
+      createCallback(instance, resolve, reject)
+    )
 }
 
 /**
@@ -166,12 +112,13 @@ function setSendMethod (construct, prototype) {
    * @method Jaxire#send
    * @param {string} [data] - Data to send
    * @param {string} [clean] - Whether the data should not use preset's "send" option
+   * @returns {Promise}
    */
   /**
    * @namespace Jaxire#send(2)
    */
   Object.defineProperty(prototype, 'send', {
-    get: function () {
+    get: function sendRawData () {
       var ctx = this
       ctx.format = null
 
@@ -179,19 +126,22 @@ function setSendMethod (construct, prototype) {
         return new Promise(ctx._prepareFunc)
           .then(function () {
             var value = ctx._sendFunc(data)
-            request(construct, ctx, value)
+            return new Promise(function (resolve, reject) {
+              makeXHRequest(construct, ctx, value, resolve, reject)
+            })
           })
           .catch(function (error) {
             throw Error(error)
           })
       }
-      
+
       /**
        * Sends "key-value" map as urlencoded serialized text.
        * This metod is also tries to set "Content-Type" to
        * "application/x-www-form-urlencoded" (if it's not set manually).
        * @method Jaxire#send(2).text
-       * @param {object} data - Map of params
+       * @param {Object} data - Map of params
+       * @returns {Promise}
        */
       method.text = function sendText (data) {
         var sendFunc = ctx._sendFunc
@@ -202,17 +152,18 @@ function setSendMethod (construct, prototype) {
         }
 
         ctx._sendFunc = function (data) {
-          return urlStr(sendFunc(data))
+          return urlToStr(sendFunc(data))
         }
 
         return method(data)
       }
 
       /**
-       * Sends JSON-serializable object. This method is also tries to set
+       * Sends JSON-serializable Object. This method is also tries to set
        * "Content-Type" header to "application/json" (if it's not set manually).
        * @method Jaxire#send(2).json
-       * @param {object} data - JSON-serializable data
+       * @param {Object} data - JSON-serializable data
+       * @returns {Promise}
        */
       method.json = function sendJSON (data) {
         var sendFunc = ctx._sendFunc
@@ -230,9 +181,10 @@ function setSendMethod (construct, prototype) {
       }
 
       /**
-       * Sends form data object. Be sure to prepare it properly!
+       * Sends form data Object. Be sure to prepare it properly!
        * @method Jaxire#send(2).form
        * @param {FormData} data
+       * @returns {Promise}
        */
       method.form = function sendFormData (data) {
         ctx.format = 'form'
@@ -252,10 +204,10 @@ function setSendMethod (construct, prototype) {
 function mergePresets (func, preset) {
   /**
    * @typedef PresetOptions
-   * @type {object}
-   * @property {object} [headers]
+   * @type {Object}
+   * @property {Object} [headers]
    * @property {StatusMap} [status]
-   * @property {object} [on]
+   * @property {Object} [on]
    * @property {PrepareCallback} [prepare]
    * @property {SendCallback} [send]
    * @property {string<'post'|'pre'>} [prepareMergeStrategy='post']
@@ -299,8 +251,7 @@ function mergePresets (func, preset) {
           .then(done)
           .catch(function (error) {
             throw Error(error)
-          })
-        
+        })
       }
     } else if (prepareMergeStrategy === 'pre') {
       prepareMethod = function (done) {
@@ -317,7 +268,7 @@ function mergePresets (func, preset) {
       }
     }
   }
-  
+
   /**
    * @callback SendCallback
    * @param {*} data - Any data to send
@@ -362,7 +313,7 @@ function factory (preset) {
     this._headersMap = Object.assign({}, this.constructor._headers)
     /**
      * @typedef StatusMap
-     * @type {object<(string|number|Array<string|number>)>}
+     * @type {Object}
      */
     this._statusesMap = Object.assign({}, this.constructor._status)
     this._callbacksMap = Object.assign({}, this.constructor._on)
@@ -372,7 +323,7 @@ function factory (preset) {
 
   mergePresets.bind(this)(F, preset)
 
-  var create = function (o) {
+  var getInstance = function (o) {
     if (!(o instanceof F)) {
       return new F()
     } else {
@@ -383,11 +334,11 @@ function factory (preset) {
   /**
    * Sets request headers
    * @method Jaxire#headers
-   * @param {object} headers
-   * @returns {Jaxire} A Jaxire instance
+   * @param {Object} headers
+   * @returns {Jaxire}
    */
   F.headers = function (headers) {
-    var instance = create(this)
+    var instance = getInstance(this)
 
     if (headers) {
       instance._headersMap = Object.assign({}, instance._headersMap, headers)
@@ -403,32 +354,32 @@ function factory (preset) {
    * if you use the second argument!
    * @method Jaxire#get
    * @param {string} url - Url without any parameters
-   * @param {object} [params] - Serializable object of url parameters, e. g. /api turns to /api?key=value
+   * @param {Object} [params] - Serializable Object of url parameters, e. g. /api turns to /api?key=value
    * @returns {Jaxire}
    */
   F.get = function (url, params) {
     params = params || null
-    return setUrlAndMethod(create, this, url, 'get', params)
+    return setUrlAndMethod(getInstance, this, url, 'get', params)
   }
 
   F.post = function (url, params) {
     params = params || null
-    return setUrlAndMethod(create, this, url, 'post', params)
+    return setUrlAndMethod(getInstance, this, url, 'post', params)
   }
 
   F.put = function (url, params) {
     params = params || null
-    return setUrlAndMethod(create, this, url, 'put', params)
+    return setUrlAndMethod(getInstance, this, url, 'put', params)
   }
 
   F.patch = function (url, params) {
     params = params || null
-    return setUrlAndMethod(create, this, url, 'patch', params)
+    return setUrlAndMethod(getInstance, this, url, 'patch', params)
   }
 
   F.delete = function (url, params) {
     params = params || null
-    return setUrlAndMethod(create, this, url, 'delete', params)
+    return setUrlAndMethod(getInstance, this, url, 'delete', params)
   }
 
   // Response callbacks
@@ -442,7 +393,7 @@ function factory (preset) {
    * @returns {Jaxire}
    */
   F.status = function Jaxire (statuses) {
-    var instance = create(this)
+    var instance = getInstance(this)
     instance._statusesMap = Object.assign(instance._statusesMap, statuses)
     return instance
   }
@@ -455,7 +406,7 @@ function factory (preset) {
    * @returns {Jaxire}
    */
   F.on = function (state, fn) {
-    var instance = create(this)
+    var instance = getInstance(this)
     instance._callbacksMap[state] = fn
     return instance
   }
@@ -467,12 +418,13 @@ function factory (preset) {
    * @returns {Jaxire}
    */
   F.descr = function (message) {
-    var instance = create(this)
+    var instance = getInstance(this)
     instance.message = message
     return instance
   }
 
-  setSendMethod(create, F.prototype)
+  setSendMethod(getInstance, F.prototype)
+
   F.preset = factory
   F.prototype.headers = F.headers
   F.prototype.get = F.get
@@ -514,5 +466,3 @@ Jaxire.prototype.preset = function () {
 }
 
 module.exports = Jaxire
-module.exports.default = Jaxire
-
