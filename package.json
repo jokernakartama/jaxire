@@ -1,6 +1,6 @@
 {
   "name": "jaxire",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "description": "An ajax wrapper to make requests easy to read",
   "author": "Sergey Kobzev",
   "license": "MIT",
@@ -26,6 +26,6 @@
   "devDependencies": {
     "sinon": "^7.5.0",
     "tap-spec": "^5.0.0",
-    "tape": "^4.12.0"
+    "tape": "^4.13.2"
   }
 }
