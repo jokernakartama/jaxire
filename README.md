@@ -133,9 +133,9 @@ JX.descr('get_user')
 
 ```
 
-#### .send(data)
+#### .send(data) => Promise<Object>
 
-Sends the data. Also provides to set content type and format data by calling it's own methods: `.send.json()`, `.send.text()`, `.send.form()`. You do not need to set `Content-Type` header manually if you use one of them!
+Sends the data. Also provides to set content type and format data by calling its own methods: `.send.json()`, `.send.text()`, `.send.form()`. You do not need to set `Content-Type` header manually if you use one of them!
 
 ```js
 
@@ -159,6 +159,19 @@ JX
 ```
 
 The method `.send()` will send a request so it should be last method you call and it is required if you want to send the request!
+
+Return xhr response object:
+
+```js
+{
+  body: Object||String,
+  statusCode: Number,
+  method: String,
+  headers: {},
+  url: String,
+  rawRequest: xhr
+}
+```
 
 ## Presets
 
