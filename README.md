@@ -1,6 +1,6 @@
 # jaxire
 
-A small wrapper over [xhr](https://www.npmjs.com/package/xhr) to write declarative ajax requests for REST api services.
+A small wrapper over [xhr](https://www.npmjs.com/package/xhr) to write easy-to-read requests for REST api services.
 
 ## Why
 
@@ -20,7 +20,7 @@ Any Jaxire method creates a new instance at the first time, others just change i
 
 ```js
 
-// I just use two letters as use two space identation
+// I just use two letters as use two spaces for identation
 var JX = require('jaxire')
 
 JX.get('/posts', { limit: 10, page: 2 })
@@ -81,7 +81,7 @@ JX.get('/posts', { limit: 10, page: 2 })
 
 #### .status(statuses)
 
-Sets groups of status codes for callbacks. You can use arrays for multiple statuses, strings started with "!" to exclude and a keyword "all" to include any status code.
+Sets groups of status codes for callbacks. You can use arrays for multiple statuses, strings started with "!" to exclude and a keyword "all" to include any status code. Also you can use "5xx"-like status (actually, you can replace any number with "x").
 
 ```js
 
@@ -89,6 +89,7 @@ JX.status({
   ok: [200, 201],
   error: ['!201', '!200', '!500'],
   somethingGoesTotallyWrong: 500,
+  thoseClientErrors: '4xx',
   atLeastItHasTheResponse: 'all'
 })
 
@@ -199,7 +200,7 @@ var MyAPI = Jaxire.preset({
       done()
     }
   },
-  
+
   // Makes some preparations before sending.
   // Make sure it returns a value!
   send:  function (passedValue) {
@@ -208,11 +209,11 @@ var MyAPI = Jaxire.preset({
     // - this.method (get, post, etc.)
     // - this.format ('text', 'json', 'form' or null)
     // - this.message
-    
+
     if (this.url === '/notreadyyet') {
       this.url = '/dummy'
     }
-    
+
     if (this.format === 'json') {
       return {
         data: passedValue,
@@ -232,7 +233,7 @@ Sometimes your request is so useful, so you want to use it's callbacks in other 
 
 ```js
 
-// JXwithPreset has own preset options that we set before
+// JXwithPreset has its own preset options that we set before
 const CoolRequest = JXwithPreset.post('/')
   .status(/* status object here */)
   .on(/* callback options here */)
@@ -269,7 +270,7 @@ const UserAPI = BaseAPI.preset(/* opts */)
 
 // In the admin api we need all of this user things, but also some
 // additional checks before sending and some data changes, and some callbacks...
-// But now we can write our requests now much shorted and without duplication
+// But now we can write our requests now much shorter and without duplicating
 // general code!
 const AdminAPI = UserAPI.preset(/* opts */)
 
