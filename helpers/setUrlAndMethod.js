@@ -1,3 +1,5 @@
+var urlToStr = require('./urlToStr')
+
 /**
  * Sets instance query parameters
  * @param {Jaxire} instance - Jaxire instance

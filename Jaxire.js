@@ -71,6 +71,7 @@ function createCallback (instance, resolve, reject) {
  * @param {(string|FormData)} data
  * @param {Function} resolve
  * @param {Function} reject
+ * @returns {XMLHttpRequest}
  */
 function makeXHRequest (construct, instance, data, resolve, reject) {
   var headers = {}
@@ -78,23 +79,23 @@ function makeXHRequest (construct, instance, data, resolve, reject) {
   instance = construct(instance)
   if (!instance.url) throw Error('Specify the url before sending')
 
-    for (var header in instance._headersMap) {
-      if (typeof instance._headersMap[header] === 'function') {
-        headers[header] = instance._headersMap[header].call(instance, data)
-      } else {
-        headers[header] = instance._headersMap[header]
-      }
+  for (var header in instance._headersMap) {
+    if (typeof instance._headersMap[header] === 'function') {
+      headers[header] = instance._headersMap[header].call(instance, data)
+    } else {
+      headers[header] = instance._headersMap[header]
     }
+  }
 
-    xhr(
-      instance.url,
-      {
-        method: instance.method,
-        body: data,
-        headers: headers
-      },
-      createCallback(instance, resolve, reject)
-    )
+  return xhr(
+    instance.url,
+    {
+      method: instance.method,
+      body: data,
+      headers: headers
+    },
+    createCallback(instance, resolve, reject)
+  )
 }
 
 /**
@@ -123,11 +124,29 @@ function setSendMethod (construct, prototype) {
       ctx.format = null
 
       var method = function send (data) {
+        if (ctx._aborted) {
+          ctx._aborted = false
+          return Promise.resolve(null)
+        }
+
         return new Promise(ctx._prepareFunc)
           .then(function () {
+            if (ctx._aborted) {
+              ctx._aborted = false
+              return null
+            }
             var value = ctx._sendFunc(data)
+
             return new Promise(function (resolve, reject) {
-              makeXHRequest(construct, ctx, value, resolve, reject)
+              var request = makeXHRequest(construct, ctx, value, resolve, reject)
+
+              ctx.abort = function abort (callback) {
+                if (callback && typeof callback === 'function') {
+                  callback.call(null, request)
+                }
+                request.abort()
+                ctx._aborted = false
+              }
             })
           })
           .catch(function (error) {
@@ -310,6 +329,25 @@ function factory (preset) {
      * @member {*} Jaxire#message
      */
     this.message = ''
+
+    /**
+     * Aborts XHRequest
+     * @method Jaxire#abort
+     * @param {AbortionCallback} [callback] - A function that will be called before abortion
+     * @returns {Jaxire}
+     */
+    this.abort = function abort (callback) {
+      if (callback && typeof callback === 'function') {
+        /**
+         * @callback AbortionCallback
+         * @param {(XMLHttpRequest|null)} request
+         */
+        callback.call(null, null)
+      }
+      this._aborted = true
+
+      return this
+    }
     this._headersMap = Object.assign({}, this.constructor._headers)
     /**
      * @typedef StatusMap
@@ -319,6 +357,7 @@ function factory (preset) {
     this._callbacksMap = Object.assign({}, this.constructor._on)
     this._sendFunc = this.constructor._send.bind(this)
     this._prepareFunc = this.constructor._prepare.bind(this)
+    this._aborted = false
   }
 
   mergePresets.bind(this)(F, preset)
@@ -402,7 +441,7 @@ function factory (preset) {
    * Sets function for callback name
    * @method Jaxire#on
    * @param {string} state - Callback name
-   * @param {function} fn - xhr callback: function(responseBody, responseData)
+   * @param {Function} fn - xhr callback: function(responseBody, responseData)
    * @returns {Jaxire}
    */
   F.on = function (state, fn) {
