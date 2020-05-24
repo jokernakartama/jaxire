@@ -133,7 +133,7 @@ JX.descr('get_user')
 
 ```
 
-#### .send(data) => Promise<Object>
+#### .send(data) => Promise
 
 Sends the data. Also provides to set content type and format data by calling its own methods: `.send.json()`, `.send.text()`, `.send.form()`. You do not need to set `Content-Type` header manually if you use one of them!
 
@@ -160,7 +160,7 @@ JX
 
 The method `.send()` will send a request so it should be last method you call and it is required if you want to send the request!
 
-Return xhr response object:
+The returned promise resolves xhr response object:
 
 ```js
 {
@@ -172,6 +172,38 @@ Return xhr response object:
   rawRequest: xhr
 }
 ```
+
+#### .abort(callback)
+
+Aborts the request (even if it's not started yet, for example during **.prepare**). This method can be only called on Jaxire instance. It calls the provided callback function with aborted `XMLHttpRequest` object (or `null`, if the request has not been created).
+Returns the same Jaxire instance, so you can continue to call its methods.
+
+```js
+// It makes sense to save Jaxire instance in a variable
+const rabbit = Jaxire.get('/rabbit').status({ success: 200 })
+const turtle = Jaxire.get('/turtle').status({ success: 200 })
+
+// Abort the latter in case when the former is completed
+rabbit.on('success', () => {
+  turtle
+    .abort((request) => {
+      console.log('The following request: ', request, ' has been aborted')
+    })
+    // and optionally we can continue to use the object
+    .get('/mighty-turtle')
+    .send()
+})
+
+rabbit.send()
+turtle.send()
+
+if (environment === 'sea') {
+  // Just stop the first request immediately
+  rabbit.abort()
+}
+```
+
+
 
 ## Presets
 
