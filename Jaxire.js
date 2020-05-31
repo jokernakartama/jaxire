@@ -1,7 +1,7 @@
 "use strict"
 
 var xhr = require('xhr')
-var urlToStr = require('./helpers/urlToStr')
+var getQueryString = require('./helpers/getQueryString')
 var compareStatus = require('./helpers/compareStatus')
 var setUrlAndMethod = require('./helpers/setUrlAndMethod')
 
@@ -171,7 +171,7 @@ function setSendMethod (construct, prototype) {
         }
 
         ctx._sendFunc = function (data) {
-          return urlToStr(sendFunc(data))
+          return getQueryString(sendFunc(data))
         }
 
         return method(data)

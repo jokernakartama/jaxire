@@ -1,4 +1,4 @@
-var urlToStr = require('./urlToStr')
+var getQueryString = require('./getQueryString')
 
 /**
  * Sets instance query parameters
@@ -16,7 +16,7 @@ function setUrlAndMethod (construct, instance, url, method, params) {
   instance.url = url
 
   if (params && typeof params === 'object') {
-    query = urlToStr(params)
+    query = getQueryString(params)
     if (query !== '') instance.url = instance.url + '?' + query
   }
 

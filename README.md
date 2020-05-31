@@ -70,12 +70,33 @@ Calling a constructor method the first time returns it's instance.
 
 #### .[method](url, urlParams)
 
-Sets the request method by calling `.get()`, `.post()`, `.delete()`, `.patch()` or `.put()` and url
+Sets the request method by calling `.get()`, `.post()`, `.delete()`, `.patch()` or `.put()` and url. Note that urlParams should be a map of values. The values will be converted by `.toString` method. Arrays and sets will be converted to multiple query parameters with the same name (and their elements will be converted by `.toString` regardless of the element type). Here is an example:
+
 
 ```js
 
-// GET /posts?limit=10&page=2
-JX.get('/posts', { limit: 10, page: 2 })
+// GET /posts
+//   ?limit=10
+//   &page=2
+//   &sort_by=name
+//   &roles[]=1
+//   &roles[]=2
+//   &branches=[Object%20Array]
+//   &branches=[Object%20Object]
+//   &tree=[Object%20Object]
+//   &check=true
+JX.get('/posts', {
+  limit: 10,
+  page: 2,
+  sort_by: 'name'
+  'roles[]': new Set([1, 2]),
+  branches: [
+    [0, 0, 0],
+    { a: 'a', b: 'b' }
+  ],
+  tree: { here: true, there: false }
+  check: true
+})
 
 ```
 
@@ -148,8 +169,8 @@ JX
   // .send.json({ key: 'value', list: [1, 2, 3]})
 
   // URIEncoded string, uses .toString() to serialize values!
-  // sends name=John&lastname=Doe&visible=false
-  // .send.text({ name: 'John', lastname: 'Doe', visible: false })
+  // sends name=John&lastname=Doe&visible=false&roles[]=1&roles[]=2
+  // .send.text({ name: 'John', lastname: 'Doe', visible: false, 'roles[]': [1, 2] })
 
   // FormData object (this is the same method as .send unlike two others
   // before, but can be helpful to explicitly declare that the request
