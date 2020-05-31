@@ -29,7 +29,7 @@ test('"Preset" method creates a new constructor with predefined properties for a
   t.ok(instance instanceof CustomConstructor, 'should be instance of custom constructor')
   t.deepEqual(instance._statusesMap, statusesMap, 'should set statuses')
   t.deepEqual(instance._callbacksMap, callbacksMap, 'should set callbacks')
-  
+
   t.end()
 })
 
@@ -44,7 +44,7 @@ test('Provides the "send" method that also provides different formats to send da
 
 test('Sets "Content-Type" header according send method', function (t) {
   var base = Jaxire.preset({
-    send: function (val) {      
+    send: function (val) {
       return val
     }
   })
@@ -108,7 +108,7 @@ test('Saves previous preset data', function (t) {
       child: 'child'
     }
   })
-  
+
   var ParentInstance = Parent.get('/')
   var ChildInstance = Child.get('/')
 
