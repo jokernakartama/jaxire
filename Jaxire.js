@@ -31,6 +31,16 @@ function createCallback (instance, resolve, reject) {
     for (var statusEvent in instance._callbacksMap) {
       var isStatusSuitable = false
 
+      // xhr turns headers to lowercase
+      if (resp.headers['content-type'] && resp.headers['content-type'] === 'application/json') {
+        try {
+          body = JSON.parse(body)
+          resp.body = body
+        } catch (e) {
+          if (e); // pass
+        }
+      }
+
       if (statusEvent in instance._statusesMap) {
         if (instance._statusesMap[statusEvent] instanceof Array) {
           isStatusSuitable = instance._statusesMap[statusEvent].some(function (status) {
@@ -41,16 +51,6 @@ function createCallback (instance, resolve, reject) {
         }
 
         if (isStatusSuitable) {
-          // xhr turns headers to lowercase
-          if (resp.headers['content-type'] && resp.headers['content-type'] === 'application/json') {
-            try {
-              body = JSON.parse(body)
-              resp.body = body
-            } catch (e) {
-              if (e); // pass
-            }
-          }
-
           instance._callbacksMap[statusEvent].bind(instance)(body, resp)
         }
       }
@@ -101,7 +101,7 @@ function makeXHRequest (construct, instance, data, resolve, reject) {
 /**
  * Defines "send" method for a Jaxire instance
  * @param {Function} construct - A new Jaxire instance constructor
- * @param {(Function|Jaxire)} prototype - A Jaxire instance or it's constructor 
+ * @param {(Function|Jaxire)} prototype - A Jaxire instance or it's constructor
  */
 function setSendMethod (construct, prototype) {
   /**
@@ -230,7 +230,7 @@ function mergePresets (func, preset) {
    * @property {PrepareCallback} [prepare]
    * @property {SendCallback} [send]
    * @property {string<'post'|'pre'>} [prepareMergeStrategy='post']
-   * @property {string<'post'|'pre'>} [sendMergeStrategy='post'] 
+   * @property {string<'post'|'pre'>} [sendMergeStrategy='post']
    */
   preset = preset || {}
 
